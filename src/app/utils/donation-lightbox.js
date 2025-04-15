@@ -1,7 +1,8 @@
 import "./confetti";
 export class DonationLightbox {
+  debug = false; // if true, messages will be logged to console
   constructor() {
-    console.log("DonationLightbox: constructor");
+    this.logMessage("constructor");
     window.dataLayer = window.dataLayer || [];
     this.defaultOptions = {
       name: "4Site Multi-Step Splash",
@@ -42,7 +43,7 @@ export class DonationLightbox {
     }
     // Get Data Attributes
     let data = element.dataset;
-    console.log("DonationLightbox: loadOptions: data: ", data);
+    this.logMessage("loadOptions: data: ", data);
     // Set Options
     if ("name" in data) {
       this.options.name = data.name;
@@ -96,16 +97,27 @@ export class DonationLightbox {
       this.options.view_more = data.view_more === "true";
     }
   }
+  sourceExists(source_id) {
+    this.logMessage("sourceExists: source_id: ", source_id, `.foursiteDonationLightbox[data-source='${source_id}']`);
+    const lightbox = document.querySelector(`.foursiteDonationLightbox[data-source='${source_id}']`);
+    if(lightbox && !lightbox.classList.contains("is-hidden")) {
+      this.logMessage("sourceExists: lightbox already exists");
+      return true;
+    }
+    this.logMessage("sourceExists: lightbox does not already exist");
+    return false;
+  }
   init() {
-    console.log("DonationLightbox: init");
+    this.logMessage("init");
     document.querySelectorAll("[data-donation-lightbox]").forEach((e) => {
-      e.addEventListener(
-        "click",
-        (event) => {
+      this.logMessage("init: e: ", e);
+      e.addEventListener("click", (event) => {
           // Get clicked element
-          let element = event.target;
-          console.log("DonationLightbox: init: clicked element: " + element);
-          this.build(event);
+          let element = event.target;      
+          this.logMessage("init: clicked element: ", element);
+          if(!this.sourceExists(element.id)) {
+            this.build(event, element.id);
+          }
         },
         false
       );
@@ -116,11 +128,14 @@ export class DonationLightbox {
       window.DonationLightboxOptions.hasOwnProperty("url") &&
       !this.getCookie()
     ) {
-      this.build(window.DonationLightboxOptions.url);
+      const slugified_name = window.DonationLightboxOptions.name ? window.DonationLightboxOptions.name.toLowerCase().trim().replaceAll(" ", "-") : "options";
+      if(!this.sourceExists(slugified_name)) {
+        this.build(window.DonationLightboxOptions.url, slugified_name);
+      }
     }
   }
-  build(event) {
-    console.log("DonationLightbox: build", typeof event);
+  build(event, source_id) {
+    this.logMessage("build", typeof event);
     let href = null;
     if (typeof event === "object") {
       // Get clicked element
@@ -193,8 +208,8 @@ export class DonationLightbox {
                 this.options.bg_color
               }; color: ${this.options.txt_color}">
                 <h1 class="dl-title" style="color: ${this.options.txt_color}">${
-      this.options.title
-    }</h1>
+                  this.options.title
+                }</h1>
                 <p class="dl-paragraph" style="color: ${
                   this.options.txt_color
                 }">${this.options.paragraph}</p>
@@ -258,6 +273,7 @@ export class DonationLightbox {
 
     let overlay = document.createElement("div");
     overlay.id = this.overlayID;
+    overlay.setAttribute("data-source", source_id);
     overlay.classList.add("is-hidden");
     overlay.classList.add("foursiteDonationLightbox");
     overlay.innerHTML = markup;
@@ -364,7 +380,7 @@ export class DonationLightbox {
   }
   // Receive a message from the child iframe
   receiveMessage(event) {
-    console.log("DonationLightbox: receiveMessage: event: ", event);
+    this.logMessage("receiveMessage: event: ", event);
     const message = event.data;
 
     switch (message.key) {
@@ -381,10 +397,7 @@ export class DonationLightbox {
         break;
       case "donationinfo":
         this.donationinfo = JSON.parse(message.value);
-        console.log(
-          "DonationLightbox: receiveMessage: donationinfo: ",
-          this.donationinfo
-        );
+        this.logMessage("receiveMessage: donationinfo: ", this.donationinfo);
         break;
       case "firstname":
         const firstname = message.value;
@@ -399,12 +412,13 @@ export class DonationLightbox {
     }
   }
   status(status, event) {
+    this.logMessage("status: ", status, event);
     switch (status) {
       case "loading":
-        document.querySelector(".dl-loading").classList.remove("is-loaded");
+        document.querySelector(".foursiteDonationLightbox:not(.is-hidden) .dl-loading").classList.remove("is-loaded");
         break;
       case "loaded":
-        document.querySelector(".dl-loading").classList.add("is-loaded");
+        document.querySelector(".foursiteDonationLightbox:not(.is-hidden) .dl-loading").classList.add("is-loaded");
         break;
       case "submitted":
         // this.donationinfo.frequency =
@@ -713,5 +727,11 @@ export class DonationLightbox {
         : ""
     }
     </div>`;
+  }
+
+  logMessage(...message) {
+    if(this.debug) {
+      console.log("DonationLightbox: ", message);
+    }
   }
 }
